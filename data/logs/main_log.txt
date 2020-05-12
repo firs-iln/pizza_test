@@ -1,0 +1,1 @@
+('12.05.2020_19:28:31.095867', ' — ', OperationalError('no such column: Морячок'))
