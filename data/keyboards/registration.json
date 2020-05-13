@@ -4,24 +4,17 @@
         [{
             "action": {
                 "type": "text",
-                "payload": "{\"button\": \"1\"}",
                 "label": "Наличными курьеру"
             },
-          "color": "primary"
+            "color": "primary"
              },
         {
-                "action": {
-                    "type": "text",
-                    "payload": "{\"button\": \"2\"}",
-                    "label": "Картой курьеру"
-                },
-                "color": "primary"
-            },
-        {
             "action": {
-                "type": "location",
-                "payload": "{\"button\": \"1\"}"
-            }
-        }]
+                "type": "text",
+                "label": "Картой курьеру"
+            },
+            "color": "primary"
+        }
+        ]
     ]
 }
