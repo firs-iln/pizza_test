@@ -72,9 +72,9 @@ def update_carousel_page(user_id, cur, con, value):  # обновление те
 
 def update_current_dish(user_id, cur, con, value):
     if value != 0:
-        current = cur.execute(f'''SELECT current_dish FROM Users WHERE user_id = {user_id}''')
+        current = cur.execute(f'''SELECT current_dish FROM Users WHERE user_id = {user_id}''').fetchall()[0][0]
         cur.execute(f'''UPDATE Users
-                        SET current_dish = {current + value}
+                        SET current_dish = {int(current) + value}
                         WHERE user_id = {user_id}''')
         con.commit()
     else:
@@ -186,23 +186,35 @@ def show_current_carousel(vk, cur, con, user_id):  # отправка карус
 def show_basket(vk, cur, con, user_id):  # отправка корзины
     basket_li = cur.execute(f'''SELECT basket FROM Users WHERE user_id = {user_id}''').fetchall()[0][0].split(',')
     basket = Basket()
+    basket = None
+    basket = Basket()
     for dish in basket_li:
         if dish:
+            print(basket_li, dish)
             dish = cur.execute(f"SELECT * FROM Menu WHERE name = '{dish}'").fetchall()[0]
             basket.append(Dish(dish))
-    with open(path_to('data/keyboards', 'basket.json'), 'r', encoding='UTF-8') as kb:
-        vk.messages.send(user_id=user_id,
-                         message=str(basket),
-                         random_id=random.randint(0, 2 ** 64), keyboard=kb.read())
-    update_last_act(user_id, cur, con, 'show_basket')
+    print(str(basket.dishes_li[0]), basket)
+    text = str(basket)
+    if text:
+        with open(path_to('data/keyboards', 'basket.json'), 'r', encoding='UTF-8') as kb:
+            vk.messages.send(user_id=user_id,
+                             message=text,
+                             random_id=random.randint(0, 2 ** 64), keyboard=kb.read())
+        update_last_act(user_id, cur, con, 'show_basket')
+    else:
+        with open(path_to('data/keyboards', 'empty_basket.json'), 'r', encoding='UTF-8') as kb:
+            vk.messages.send(user_id=user_id,
+                             message='Ваша корзина пуста. Наполните ее и возвращайтесь!',
+                             random_id=random.randint(0, 2 ** 64), keyboard=kb.read())
+        update_last_act(user_id, cur, con, 'show_empty_basket')
 
 
 def show_current_dish(vk, cur, con, user_id):  # отправка текущего блюда
     max_num = cur.execute('SELECT num FROM Menu').fetchall()[-1][0]
-    dish_li = cur.execute(f'''SELECT * FROM Menu WHERE num = ((
-                                SELECT current_dish FROM Users WHERE user_id = {user_id}) + 1) ''')
+    current = cur.execute(f'SELECT current_dish FROM Users WHERE user_id = {user_id}').fetchall()[0][0]
+    dish_li = cur.execute(f'SELECT * FROM Menu WHERE num = {int(current) + 1}').fetchall()[0]
     dish = Dish(dish_li)
-    last_act = cur.execute(f'''SELECT last_act FROM Users WHERE user_id = {user_id}''')
+    last_act = cur.execute(f'SELECT last_act FROM Users WHERE user_id = {user_id}').fetchall()[0][0]
     if last_act != 'show_last_dish':
         kb = {"inline": True, "buttons": [
             [{"action": {"type": "text", "payload": "{\"button\": \"1\"}", "label": f"{dish.name}"},
@@ -214,7 +226,7 @@ def show_current_dish(vk, cur, con, user_id):  # отправка текущег
         kb_json = json.dumps(kb)
         vk.messages.send(user_id=user_id,
                          message=str(dish), random_id=random.randint(0, 2 ** 64),
-                         keyboard=kb_json, attachments=upload_image(vk, dish.url_pic))
+                         keyboard=kb_json, attachment=f'photo{upload_image(vk, dish.url_pic)}')
         if dish.num == max_num:
             update_last_act(user_id, cur, con, 'show_last_dish')
         else:
@@ -226,10 +238,10 @@ def show_current_dish(vk, cur, con, user_id):  # отправка текущег
                              random_id=random.randint(0, 2 ** 64), keyboard=kb.read())
 
 
-def registration(vk, cur, con, user_id, address):
+def registration(vk, cur, con, user_id):
     with open(path_to('data/keyboards', 'registration.json'), 'r', encoding='UTF-8') as kb:
         vk.messages.send(user_id=user_id,
-                         message=f"Ваш адрес — {address}. Выберите способ оплаты или измените адрес:",
+                         message="Выберите способ оплаты:",
                          random_id=random.randint(0, 2 ** 64), keyboard=kb.read())
         update_last_act(user_id, cur, con, 'registration')
 
@@ -237,16 +249,7 @@ def registration(vk, cur, con, user_id, address):
 def edit_basket(vk, cur, con, user_id, action='ask', elem=None):
     basket_li = cur.execute(f'''SELECT basket FROM Users WHERE user_id = {user_id}''').fetchall()[0][0].split(',')
     basket = Basket()
-    print(basket_li)
-    for dish in basket_li:
-        if dish:
-            print(0)
-            dish = cur.execute(f"SELECT * FROM Menu WHERE name = '{dish}'").fetchall()[0]
-            print(dish)
-            basket.append(Dish(dish))
-            print(basket)
     update_basket(user_id, cur, con, vk, dish=0)
-    print(basket)
     if action == 'ask':
         with open(path_to('data/keyboards', 'edit_basket.json'), 'r', encoding='UTF-8') as kb:
             vk.messages.send(user_id=user_id,
@@ -257,8 +260,10 @@ def edit_basket(vk, cur, con, user_id, action='ask', elem=None):
         try:
             print(elem, basket, len(basket))
             if int(elem) in range(len(basket)):
-                basket.reduce(int(elem))
+                basket.delete(int(elem) + 1)
                 update_basket(user_id, cur, con, vk, new=basket.names())
+                basket = None
+                basket = Basket()
                 with open(path_to('data/keyboards', 'edit_basket.json'), 'r', encoding='UTF-8') as kb:
                     vk.messages.send(user_id=user_id,
                                      message='Выполнено! Если хочешь удалить ещё, пиши цифру!\n\n' + str(
@@ -278,14 +283,8 @@ def edit_basket(vk, cur, con, user_id, action='ask', elem=None):
 
 
 def finish(vk, cur, con, user_id):
-    address = cur.execute(f'SELECT address FROM Users WHERE user_id = {user_id}').fetchall()[0][0]
-    basket_li = cur.execute(f'''SELECT basket FROM Users WHERE user_id = {user_id}''').fetchall()[0][0].split(',')
-    basket = Basket()
-    for dish in basket_li:
-        basket.append(Dish(dish))
     vk.messages.send(user_id=user_id,
-                     message="Спасибо за Ваш заказ! Курьер прибудет по указанному вами адресу через час." +
-                             "Данные Вашего заказа:\nАдрес:" + address + str(basket),
+                     message="Спасибо за Ваш заказ! Курьер прибудет по указанному вами адресу через час.",
                      random_id=random.randint(0, 2 ** 64))
     update_carousel_page(user_id, cur, con, 0)
     update_current_dish(user_id, cur, con, 0)
@@ -392,7 +391,7 @@ def main():
                     else:
                         result = cur.execute(f"SELECT * FROM Menu WHERE name = '{text.rstrip()}'").fetchall()
                         if result:
-                            update_basket(user_id, cur, con, vk, result[0],)
+                            update_basket(user_id, cur, con, vk, result[0], )
                         else:
                             vk.messages.send(user_id=user_id,
                                              message="Такого блюда в меню нет, попробуй ещё раз!",
@@ -413,12 +412,14 @@ def main():
                 if last_act == 'show_dish':
                     if text == 'Следующее блюдо!':
                         update_current_dish(user_id, cur, con, 1)
+                        show_current_dish(vk, cur, con, user_id)
                     elif text == 'Предыдущее блюдо!':
                         update_current_dish(user_id, cur, con, -1)
+                        show_current_dish(vk, cur, con, user_id)
                     else:
-                        result = cur.execute(f'''SELECT * FROM Menu WHERE name = {text}''').fetchall()
+                        result = cur.execute(f"SELECT * FROM Menu WHERE name = '{text}'").fetchall()
                         if result:
-                            update_basket(user_id, cur, con, vk, result[0],)
+                            update_basket(user_id, cur, con, vk, result[0], )
                         else:
                             vk.messages.send(user_id=user_id,
                                              message="Такого блюда в меню нет, попробуй ещё раз!",
@@ -438,41 +439,41 @@ def main():
                         show_current_dish(vk, cur, con, user_id)
                 if last_act == 'show_basket':
                     if text == 'Оформляем!':
-                        registration(vk, cur, con, user_id, address)
+                        registration(vk, cur, con, user_id)
                     elif text == 'Давай кое-что удалим':
                         update_last_act(user_id, cur, con, 'edit_basket')
                         edit_basket(vk, cur, con, user_id)
                 if last_act == 'registration':
-                    new_address = get_address(vk, event, user_id, cur, con, necessarily=False)
-                    if text == 'Давай кое-что удалим':
-                        update_last_act(user_id, cur, con, 'edit_basket')
-                        edit_basket(vk, cur, con, user_id)
-                    if new_address:
-                        update_address(user_id, cur, con, new_address)
-                    elif text == 'Наличными курьеру' or text == 'Картой курьеру':
+                    if text == 'Наличными курьеру' or text == 'Картой курьеру':
                         update_pay_way(user_id, cur, con, text)
                         finish(vk, cur, con, user_id)
                     else:
                         vk.messages.send(user_id=user_id,
                                          message="Что-то ты намудрил, отвечай лучше кнопками!",
                                          random_id=random.randint(0, 2 ** 64))
-                        registration(vk, cur, con, user_id, address)
+                        registration(vk, cur, con, user_id)
                 if last_act == 'edit_basket':
                     if text == 'Назад к оформлению':
-                        registration(vk, cur, con, user_id, address)
+                        registration(vk, cur, con, user_id)
                     else:
                         edit_basket(vk, cur, con, user_id, action='del', elem=text)
                 if last_act == 'ask_for_del':
                     edit_basket(vk, cur, con, user_id, action='del', elem=text)
                 if text == 'Назад к оформлению':
-                    registration(vk, cur, con, user_id, address)
+                    registration(vk, cur, con, user_id)
+                if last_act == 'show_empty_basket':
+                    if text == 'К меню!':
+                        if 'carousel' in event.client_info.keys():
+                            show_current_carousel(vk, cur, con, user_id)
+                        else:
+                            show_current_dish(vk, cur, con, user_id)
 
 
 if __name__ == '__main__':
-    # try:
-    reason = main()
-    # except Exception as e:
-    #    reason = e
+    try:
+        reason = main()
+    except Exception as e:
+        reason = e
     if reason:
         logging(dt.datetime.now().strftime("%d.%m.%Y_%H:%M:%S.%f"), ' — ', reason,
                 file='main_log.txt', session_time=SESSION_TIME)
