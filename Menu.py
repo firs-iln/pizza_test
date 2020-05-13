@@ -31,7 +31,6 @@ class Basket:
         inside = self.inside()
         price = self.sum_up()
         if inside:
-            print(inside)
             return 'Ваша корзина:\n\n' + inside + '\nИтого: ' + str(price) + ' рублей'
         else:
             return ''
