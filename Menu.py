@@ -5,10 +5,9 @@ class Dish:
         self.price = dish[2]
         self.description = dish[3]
         self.url_pic = dish[4]
-        self.a = 1
 
     def __str__(self):
-        return f'Пицца "{self.name}"\n{self.description}\nЦена: {self.price} рублей\nКол-во в корзине:{self.a}\n'
+        return f'Пицца "{self.name}"\n{self.description}\nЦена: {self.price} рублей\n'
 
 
 class Basket:
@@ -24,7 +23,7 @@ class Basket:
     def inside(self):
         text = ''
         for num, dish in enumerate(self.dishes_li):
-            text += str(num + 1) + ')' + str(dish) + '\n'
+            text += str(num + 1) + ') ' + str(dish) + '\n'
         text.rstrip()
         return text
 
@@ -32,21 +31,17 @@ class Basket:
         inside = self.inside()
         price = self.sum_up()
         if inside:
+            print(inside)
             return 'Ваша корзина:\n\n' + inside + '\nИтого: ' + str(price) + ' рублей'
         else:
-            return 'Ваша корзина пуста. Наполните ее и возвращайтесь!'
+            return ''
 
     def append(self, dish):
-        if dish.name not in self.names():
-            self.dishes_li.append(dish)
-        else:
-            for elem in self.dishes_li:
-                if elem.name == dish.name:
-                    elem.a += 1
+        self.dishes_li.append(dish)
 
     def delete(self, i):
         for num, dish in enumerate(self.dishes_li):
-            if num + 1 == i:
+            if num == i:
                 del self.dishes_li[i]
 
     def __len__(self):
@@ -57,11 +52,3 @@ class Basket:
         for dish in self.dishes_li:
             text += dish.name + ','
         return text
-
-    def reduce(self, i):
-        for num, dish in enumerate(self.dishes_li):
-            if num + 1 == i:
-                if self.dishes_li[i].a > 0:
-                    self.dishes_li[i].a -= 1
-                elif self.dishes_li[i].a == 0:
-                    self.delete(i)
