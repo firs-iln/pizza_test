@@ -297,8 +297,8 @@ def main():
     #  подключение к ВКонтакте
     try:
         vk_session = vk_api.VkApi(
-            token='41e1b47bb6d5d9b90ba89da796c0a85c33ebe0c6b75219b2d3f7e2c8492293f9d54a641647d56388c0f7a')
-        longpoll = VkBotLongPoll(vk_session, '195073403')
+            token=TOKEN)
+        longpoll = VkBotLongPoll(vk_session, GROUP_ID)
     except BaseException as e:
         return e
     #  подключение к БД
